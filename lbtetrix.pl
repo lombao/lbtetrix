@@ -1,6 +1,16 @@
 #! /usr/bin/perl -w
 
 
+#
+# Author: Cesar Lombao
+#
+# Copyright (C) 2018 Cesar Lombao. All rights reserved.
+# This program is free software; you can redistribute it and/or
+# modify it under the GPLv3 License
+#
+# Mail: cesar.lombao@gmail.com
+#
+
 use strict;
 use warnings;
 use Data::Dumper;
@@ -400,12 +410,10 @@ sub rotate_left {
 
 	$self->{cp}->rotate_left;
 	if ( $self->{board}->check_overlap($self->{cp},$self->{cpx},$self->{cpy}) == TRUE) {
-		print "Collision when rotating left, bye bye\n";
 		$self->{cp}->rotate_right;
 		return;
 	}
 	if ( $self->{board}->check_outside($self->{cp},$self->{cpx},$self->{cpy}) == TRUE) {
-		print "Collision when rotating left, bye bye\n";
 		$self->{cp}->rotate_right;
 		return;
 	}
@@ -420,12 +428,10 @@ sub rotate_right {
 
 	$self->{cp}->rotate_right;
 	if ( $self->{board}->check_overlap($self->{cp},$self->{cpx},$self->{cpy}) == TRUE) {
-		print "Collision when rotating right, bye bye\n";
 		$self->{cp}->rotate_left;
 		return;
 	}
 	if ( $self->{board}->check_outside($self->{cp},$self->{cpx},$self->{cpy}) == TRUE) {
-		print "Collision when rotating right, bye bye\n";
 		$self->{cp}->rotate_left;
 		return;
 	}
@@ -444,9 +450,7 @@ sub newpiece {
 	my $self	= shift;
 	
 		$self->{board}->add_piece($self->{cp},$self->{cpx},$self->{cpy});
-		print("La linea 3 0 del board: ".$self->{board}->{board}->{3}{0}{val}."\n");		
-		print("La linea 4 0 del board: ".$self->{board}->{board}->{4}{0}{val}."\n");
-		print("La linea 5 0 del board: ".$self->{board}->{board}->{5}{0}{val}."\n");
+
 		
 		$self->{lines} += $self->{board}->remove_lines;
 		if ($self->{lines} > 10) { $self->{lines} = 0; $self->increase_level; }
@@ -459,15 +463,10 @@ sub newpiece {
 		$self->{numblockslabel}->set_text("Blocks: ".$self->{blocks});
 		
 		$self->{cpx}		= 	int(($self->{board}->{xsize} / 2) - ($self->{cp}->{xsize} / 2));
-		print "Nuevo cpx es :".$self->{cpx}."\n";
 		$self->{cpy}    	=   -$self->{cp}->{ysize} + 1;
-		print "Nuevo cpy es :".$self->{cpy}."\n";
 				
 		$self->{caironp}->draw( $self->{np}->{cell}, $self->{np}->{xsize}, $self->{np}->{ysize} );
 
-		#if ($self->{board}->{board}->{$self->{cpx}}{0}{val} != 0) {
-	    #		$self->gameover;
-		#}
 		if ( $self->{board}->check_overlap($self->{cp},$self->{cpx},$self->{cpy}+1) ) {
 			$self->gameover;
 		} 
@@ -476,9 +475,9 @@ sub newpiece {
 sub gameover {
 	my $self = shift;
 		
-		print "GAME OVER\n";
 		$self->{gameover} = 1;
 		$self->set_timer;
+		$self->{cairoboard}->drawgameover;
 }
 
 sub increase_level {
@@ -552,8 +551,13 @@ sub set_timer {
 	    $self->{timeout} = Glib::Timeout->add($self->{speed}, 
 	       sub {
 			   $self->move_down;
-			   $self->{cairoboard}->draw( $self->create_frame, $self->{board}->{xsize}, $self->{board}->{ysize} );
-			   return TRUE;
+			   if (!$self->{gameover}) {
+					$self->{cairoboard}->draw( $self->create_frame, $self->{board}->{xsize}, $self->{board}->{ysize} );
+					return TRUE;
+			   }
+			   else {
+			     return FALSE;
+			   }
 			   }, $self );	
 }
 
@@ -649,6 +653,26 @@ sub drawpause {
 
 		my $alloc = $self->allocation;
 		my $layout = $self->create_pango_layout ("PAUSE");
+		$self->window->draw_rectangle
+	    		($self->get_style->base_gc ($self->state),
+			     TRUE, 0, $self->allocation->height/3, $self->allocation->width, $self->allocation->height/3);
+
+		my ($text_width, $text_height) = $layout->get_pixel_size;
+		
+		$self->window->draw_layout
+			 ($self->get_style->text_gc ($self->state),
+			 ($self->allocation->width - $text_width) / 2,
+			 ($self->allocation->height - $text_height) / 2,
+			 $layout);
+		
+}
+
+sub drawgameover {
+	my $self 	= shift;
+	
+
+		my $alloc = $self->allocation;
+		my $layout = $self->create_pango_layout ("GAME OVER");
 		$self->window->draw_rectangle
 	    		($self->get_style->base_gc ($self->state),
 			     TRUE, 0, $self->allocation->height/3, $self->allocation->width, $self->allocation->height/3);
