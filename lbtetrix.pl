@@ -453,7 +453,8 @@ sub newpiece {
 
 		
 		$self->{lines} += $self->{board}->remove_lines;
-		if ($self->{lines} > 10) { $self->{lines} = 0; $self->increase_level; }
+		$self->{lineslabel}->set_text("Lines: ".$self->{lines});
+		if ($self->{lines} > 10*$self->{level}) { $self->increase_level; }
 
 		$self->{cp}			= 	$self->{np};
 		$self->{np}			= 	LBTetrix::piece->new;
@@ -499,11 +500,13 @@ sub start {
 		my $pointslabel	=	shift;
 		my $speedlabel	= 	shift;
 		my $numblockslabel = shift;
+		my $lineslabel	= 	shift;
 		
 		    $self->{pause}		=   0;
 			$self->{board} 		= 	LBTetrix::board->new;
 			$self->{cp}			= 	LBTetrix::piece->new;
 			$self->{level}		=	1;
+			$self->{lines}		=   0;
 			$self->{np}			= 	LBTetrix::piece->new;
 			$self->{speed}		=	SPEED_START;
 			$self->{points}		=	0;
@@ -518,11 +521,14 @@ sub start {
 			$self->{pointslabel}	= $pointslabel;
 			$self->{speedlabel}		= $speedlabel;
 		    $self->{numblockslabel} = $numblockslabel;
+		    $self->{lineslabel} = $lineslabel;
 		    	
 			$self->{caironp}->draw( $self->{np}->{cell}, $self->{np}->{xsize}, $self->{np}->{ysize} );
 			$self->{levellabel}->set_text("Level: ".$self->{level});   
 			$self->{pointslabel}->set_text("Points: ".$self->{points});   
 			$self->{speedlabel}->set_text("Speed: ".$self->{speed});   
+			$self->{lineslabel}->set_text("Lines: ".$self->{lines});   
+			
 			$self->{numblockslabel}->set_text("Blocks: ".0);   
 			
 			$self->set_timer;
@@ -716,7 +722,7 @@ use Data::Dumper;
 
 # There is a problem here this 500 and 600 are the default x y size, it should
 # be related to those constants.
-use constant SIZE_X     => 0.23;
+use constant SIZE_X     => 0.18;
 use constant SIZE_Y     => 0.20;
 
 
@@ -747,7 +753,7 @@ sub expose
 		for($y=0; $y < $self->{yb} ; $y++){
 			for($x=0; $x < $self->{xb} ; $x++) {
 				if ($self->{board}->{$x}{$y}{val} == 1) {
-					$cr->rectangle($x*SIZE_X,$y*SIZE_Y,SIZE_X-0.009,SIZE_Y-0.007);  
+					$cr->rectangle($x*SIZE_X,$y*SIZE_Y,SIZE_X-0.006,SIZE_Y-0.007);  
 					if  ( $self->{board}->{$x}{$y}{color} == 1 ) { 	$cr->set_source_rgba (0.7, 0, 0.1, 0.8); }
 					elsif  ( $self->{board}->{$x}{$y}{color} == 2 ) { 	$cr->set_source_rgba (0.3, 0.5, 0.2, 0.8); }
 					elsif  ( $self->{board}->{$x}{$y}{color} == 3 ) { 	$cr->set_source_rgba (0.1, 0.7, 0.1, 0.8); }
@@ -814,10 +820,13 @@ use Gtk2::SimpleMenu;
 my $game 		= LBTetrix::game->new;
 my $cairoboard 	= LBTetrix::cairoboard->new;
 my $caironp		= LBTetrix::caironp->new;
+
 my $levellabel 	= Gtk2::Label->new ();
 my $pointslabel	= Gtk2::Label->new ();
 my $speedlabel 	= Gtk2::Label->new ();
 my $numblockslabel 	= Gtk2::Label->new ();
+my $lineslabel		= Gtk2::Label->new ();
+
  
 #standard window creation, placement, and signal connecting
 my $window = Gtk2::Window->new('toplevel');
@@ -844,7 +853,7 @@ $window->signal_connect('key-press-event' => sub {
 			item_type  => '<Branch>',
 			children => [
 				_New       => {
-					callback => sub { $game->start($cairoboard,$caironp,$levellabel,$pointslabel,$speedlabel,$numblockslabel); }, 
+					callback => sub { $game->start($cairoboard,$caironp,$levellabel,$pointslabel,$speedlabel,$numblockslabel,$lineslabel); }, 
 				},		
 				_Pause      => {
 					callback => sub { $game->pause; },
@@ -903,9 +912,9 @@ $window->signal_connect('key-press-event' => sub {
 	$framenow->add($vboxlabels);	
     $vboxlabels->add($levellabel);
     $vboxlabels->add($pointslabel);
-    $vboxlabels->add($speedlabel);
     $vboxlabels->add($numblockslabel);
-    
+    $vboxlabels->add($lineslabel);
+    $vboxlabels->add($speedlabel);
     
     my $framecopy = Gtk2::Frame->new("License");
 	$framecopy->set_size_request(160,100);
