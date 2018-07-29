@@ -353,6 +353,7 @@ sub create_frame {
 sub move_left {
 	my $self	= shift;
 	
+	return if ($self->{gameover}==1);
 	my $y; my $k=0;
 	return if $self->{board}->check_overlap($self->{cp},$self->{cpx}-1,$self->{cpy});
 	if ($self->{cpx} <= 0) {	
@@ -366,6 +367,7 @@ sub move_left {
 sub move_right {
 	my $self	= shift;
 	
+	return if ($self->{gameover}==1);
 	my $y; my $k=0;
 	return if $self->{board}->check_overlap($self->{cp},$self->{cpx}+1,$self->{cpy});
 	if ($self->{cpx} >= $self->{board}->{xsize} - $self->{cp}->{xsize} ) {
@@ -384,7 +386,7 @@ sub move_down {
 	
 	my $x; my $k=0;
 	
-
+		return if ($self->{gameover} == 1);
 		if ($self->{board}->check_overlap($self->{cp},$self->{cpx},$self->{cpy}+1) == TRUE) {
 			$self->newpiece;
 			return FALSE;
@@ -407,7 +409,7 @@ sub move_down {
 sub rotate_left {
 	my $self = shift;
 	
-
+	return if $self->{gameover} == 1;
 	$self->{cp}->rotate_left;
 	if ( $self->{board}->check_overlap($self->{cp},$self->{cpx},$self->{cpy}) == TRUE) {
 		$self->{cp}->rotate_right;
@@ -425,7 +427,7 @@ sub rotate_left {
 sub rotate_right {
 	my $self = shift;
 	
-
+	return if $self->{gameover} == 1;
 	$self->{cp}->rotate_right;
 	if ( $self->{board}->check_overlap($self->{cp},$self->{cpx},$self->{cpy}) == TRUE) {
 		$self->{cp}->rotate_left;
@@ -443,6 +445,7 @@ sub rotate_right {
 sub free_fall {
 	my $self = shift;
 	
+	return if ($self->{gameover} == 1);
 	while($self->move_down) { $self->{cairoboard}->draw ( $self->create_frame, $self->{board}->{xsize}, $self->{board}->{ysize} ) } ;
 }
 
@@ -479,6 +482,32 @@ sub gameover {
 		$self->{gameover} = 1;
 		$self->set_timer;
 		$self->{cairoboard}->drawgameover;
+		if ( $self->{scores}->check_ishighscore($self->{points}) ) {
+			
+
+			my $dialog = Gtk2::Dialog->new ('Hi-Scores Board', undef, 'modal',
+			'gtk-ok' => 'ok',  
+			);
+
+			my $hbox = Gtk2::HBox->new (FALSE, 6);
+			$hbox->pack_start (Gtk2::Label->new ('Your name:'), TRUE, TRUE, 0);
+			my $entry = Gtk2::Entry->new;
+			$hbox->pack_start ($entry, TRUE, TRUE, 0);
+			$hbox->show_all;
+
+			$dialog->vbox->pack_start ($hbox, TRUE, TRUE, 0);
+			$dialog->set_default_response ('ok');
+			$entry->set_activates_default (TRUE);
+
+			my $response = $dialog->run;
+
+			$dialog->hide;
+			
+			$self->{scores}->add_hiscore($entry->get_text,$self->{points},$self->{level});
+		}
+		#$self->{scores}->print_hiscores;
+		$self->{scores}->save_hiscores;
+		
 }
 
 sub increase_level {
@@ -494,6 +523,7 @@ sub increase_level {
 
 sub start {
 		my $self		= 	shift;
+		my $scores		=  	shift;
 		my $cairoboard	=	shift;
 		my $caironp		=	shift;
 		my $levellabel	=	shift;
@@ -502,6 +532,7 @@ sub start {
 		my $numblockslabel = shift;
 		my $lineslabel	= 	shift;
 		
+			$self->{scores}		=  $scores;
 		    $self->{pause}		=   0;
 			$self->{board} 		= 	LBTetrix::board->new;
 			$self->{cp}			= 	LBTetrix::piece->new;
@@ -539,6 +570,7 @@ sub start {
 sub pause {
 	my $self = shift;
 	
+		return if $self->{gameover} == 1;
 		if ($self->{pause} ) { $self->{pause} = 0;	}
 		else				 { $self->{pause} = 1; $self->{cairoboard}->drawpause; }
 		$self->set_timer;
@@ -802,6 +834,171 @@ sub FINALIZE_INSTANCE {
 
 ##########################################
 ##########################################
+# SCORES PACKAGE
+##########################################
+##########################################
+package LBTetrix::scores;
+
+use Glib qw/TRUE FALSE/; 
+use File::Basename;
+use File::Path qw/make_path/;
+
+use constant HIGH_SCORES_FILE => $ENV{"HOME"}."/.scores/lbtetrix.dat";
+use constant MAX_HISCORES	  => 10;
+
+sub new {
+
+ my $class 	= shift;
+ my $vbox	= shift;
+	my $self = { };
+	
+	
+	$self->{vbox} = $vbox;
+	
+	my $a;
+	for($a=1;$a<=MAX_HISCORES;$a++) {
+		$self->{$a}->{name} ="XXX";
+		$self->{$a}->{level} ="1";
+		$self->{$a}->{points} ="0";
+	}
+	
+	make_path (dirname(HIGH_SCORES_FILE));
+    open FILE, ">>".HIGH_SCORES_FILE or die $!; # create if not there
+    close FILE;
+    
+    open FILE, "<".HIGH_SCORES_FILE or die $!;
+    while(<FILE>) {
+		chomp;
+		my ($pos,$name,$level,$points) = split(/,/);
+		$pos = $pos + 0;
+		$self->{$pos}->{name} = $name;
+		$self->{$pos}->{points} = $points;
+		$self->{$pos}->{level} = $level;
+		
+	}
+    close(FILE);	
+
+	$self->{label1}		= Gtk2::Label->new ("1::".$self->{1}->{name}.": ".$self->{1}->{points}." Level".$self->{1}->{level});
+	$self->{label2}		= Gtk2::Label->new ("2::".$self->{2}->{name}.": ".$self->{2}->{points}." Level".$self->{2}->{level});
+	$self->{label3}		= Gtk2::Label->new ("3::".$self->{3}->{name}.": ".$self->{3}->{points}." Level".$self->{3}->{level});
+	$self->{label4}		= Gtk2::Label->new ("4::".$self->{4}->{name}.": ".$self->{4}->{points}." Level".$self->{4}->{level});
+	
+	
+	$self->{vbox}->add($self->{label1});
+	$self->{vbox}->add($self->{label2});
+	$self->{vbox}->add($self->{label3});
+	$self->{vbox}->add($self->{label4});
+	
+	
+    
+    bless($self,$class);
+    
+return $self;
+}
+
+sub check_ishighscore {
+	my $self = shift;
+	my $points = shift;
+
+	my $a;
+	for ($a=1;$a<=MAX_HISCORES;$a++) {
+		if ($self->{$a}->{points} < $points) {
+			return TRUE;
+		}
+	}
+	
+	return FALSE;
+}
+
+sub add_hiscore {
+	my $self = shift;
+	my $name = shift;
+	my $points = shift;
+	my $level  = shift;
+	
+	
+	my $a; my $pos=0;
+	for($a=1;$a<=MAX_HISCORES;$a++) {
+		if ($points > $self->{$a}->{points}) {
+			$pos = $a; last;
+		}
+	}
+	
+	if ($pos != 0) {
+		my $b;
+		for($b=MAX_HISCORES; $b>$pos; $b--) {
+			$self->{$b}->{name} = $self->{$b-1}->{name};
+			$self->{$b}->{points} = $self->{$b-1}->{points};
+			$self->{$b}->{level} = $self->{$b-1}->{level};				
+		}
+			
+		$self->{$pos}->{name} = $name;
+		$self->{$pos}->{points} = $points;
+		$self->{$pos}->{level} = $level;				
+	}	
+	
+}
+
+sub print_hiscores {
+	my $self 	=	shift;
+	
+	my $a;
+	for($a=1;$a<MAX_HISCORES;$a++) {
+		print($self->{$a}->{name}.":".$self->{$a}->{level}." ".$self->{$a}->{points}."\n");
+	}
+}
+
+sub save_hiscores {
+	my $self 	=	shift;
+	
+	open FILE, ">".HIGH_SCORES_FILE or die $!;
+    
+	my $a;
+	for($a=1;$a<MAX_HISCORES;$a++) {
+		print FILE $a.",".$self->{$a}->{name}.",".$self->{$a}->{level}.",".$self->{$a}->{points}."\n";
+	}
+	
+	$self->{label1}->set_text( "1::".$self->{1}->{name}.": ".$self->{1}->{points}." Level".$self->{1}->{level} );
+	$self->{label2}->set_text( "2::".$self->{2}->{name}.": ".$self->{2}->{points}." Level".$self->{2}->{level} );
+	$self->{label3}->set_text( "3::".$self->{3}->{name}.": ".$self->{3}->{points}." Level".$self->{3}->{level} );
+	$self->{label4}->set_text( "4::".$self->{4}->{name}.": ".$self->{4}->{points}." Level".$self->{4}->{level} );
+	
+	
+    close(FILE);	
+    
+}
+
+sub showtop {
+	my $self =	shift;
+	
+			my $dialog = Gtk2::Dialog->new ('Hall of Fame', undef, 'modal',	'gtk-ok' => 'ok');
+		
+			my $a;
+			my $frame = Gtk2::Frame->new("The best 10 ");
+			$frame->set_size_request(360,400);
+			
+			my $vbox = Gtk2::VBox->new (FALSE, 6);
+			for ($a=1;$a<MAX_HISCORES;$a++) {
+				my $text = $a."::".$self->{$a}->{name}."  Score:".$self->{$a}->{points}." Level:".$self->{$a}->{level};
+				$vbox->pack_start (Gtk2::Label->new($text), TRUE, TRUE, 0);
+			}
+			$vbox->show_all;
+			$frame->add($vbox);
+			$frame->show_all;
+			$dialog->vbox->pack_start ($frame, TRUE, TRUE, 0);
+			$dialog->set_default_response ('ok');
+			
+			my $response = $dialog->run;
+
+			$dialog->hide;
+}
+
+1;
+
+
+
+##########################################
+##########################################
 # MAIN PACKAGE
 ##########################################
 ##########################################
@@ -827,6 +1024,8 @@ my $speedlabel 	= Gtk2::Label->new ();
 my $numblockslabel 	= Gtk2::Label->new ();
 my $lineslabel		= Gtk2::Label->new ();
 
+my $vboxscores = Gtk2::VBox->new(TRUE,5);
+my $scores	= LBTetrix::scores->new($vboxscores);
  
 #standard window creation, placement, and signal connecting
 my $window = Gtk2::Window->new('toplevel');
@@ -853,7 +1052,7 @@ $window->signal_connect('key-press-event' => sub {
 			item_type  => '<Branch>',
 			children => [
 				_New       => {
-					callback => sub { $game->start($cairoboard,$caironp,$levellabel,$pointslabel,$speedlabel,$numblockslabel,$lineslabel); }, 
+					callback => sub { $game->start($scores,$cairoboard,$caironp,$levellabel,$pointslabel,$speedlabel,$numblockslabel,$lineslabel); }, 
 				},		
 				_Pause      => {
 					callback => sub { $game->pause; },
@@ -865,11 +1064,11 @@ $window->signal_connect('key-press-event' => sub {
 				},
 			],
 		},
-		_Edit  => {
+		_Scores  => {
 			item_type => '<Branch>',
 			children => [
-				_Copy  => {
-					callback => \&callback,
+				_Top  => {
+					callback => sub { $scores->showtop },
 				},
 
 			],
@@ -915,16 +1114,14 @@ $window->signal_connect('key-press-event' => sub {
     $vboxlabels->add($numblockslabel);
     $vboxlabels->add($lineslabel);
     $vboxlabels->add($speedlabel);
-    
-    my $framecopy = Gtk2::Frame->new("License");
-	$framecopy->set_size_request(160,100);
-	my $vboxcopy = Gtk2::VBox->new(TRUE,5);
-	$framecopy->add($vboxcopy);	
-    $vboxcopy->add( Gtk2::Label->new ("Cesar Lombao 2018 (c)"));
+
+	my $framescores = Gtk2::Frame->new("Hi-Scores");    
+    $framescores->set_size_request(160,100);
+	$framescores->add($vboxscores);	
     
     
     $vboxpanel->add($framenow);
-    $vboxpanel->add($framecopy);
+    $vboxpanel->add($framescores);
     
 	$hbox->pack_start($vboxpanel,FALSE,FALSE,20);
 	$hbox->add($cairoboard);	

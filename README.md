@@ -1,13 +1,14 @@
 # lbtetrix
 Tetris clone using perl gtk2
 
-This is yet another Tetris clone, in a single file, developed in Perl using
-Gtk2 and Cairo
+This is yet another Tetris clone. Nothing special here.
+Developed using PERL and GTK2 and CAIRO
 
-It is currenly under development, it works, more or less, but it is not
-finished.
+This is a work in a progres, it is fairy advanced, you can play, but I 
+would like to improve the user interface and make it a bit less ugly.
 
-You can play try it
+You can play it with:
   perl lbtetrix.pl
 
-Any suggestions are welcome
+Any suggestions, ideas or bug reports are welcome
+
